@@ -1,0 +1,4 @@
+data/stock_market_data
+__pycache__/
+Results/
+backtesterClass/stockDB.db

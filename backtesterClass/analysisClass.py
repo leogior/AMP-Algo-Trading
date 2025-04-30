@@ -222,7 +222,14 @@ class analysisClass:
         
 
         if show:
+
+            fig.update_layout(
+                width=700,  
+                height=400, 
+            )
             fig.show()
+
+
 
         if save:
             if self.path == None:
