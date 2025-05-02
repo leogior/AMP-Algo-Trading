@@ -78,9 +78,10 @@ class rsiStrat(autoTrader):
 
                 
                 if rsi <= self.buyThreshold:  # Buy Signal
-                    if self.inventory[asset]["quantity"] < MAX_INVENTORY:
+                    if self.inventory[asset]["quantity"] < MAX_INVENTORY and self.AUM_available:
                         price, quantity = current_price, 1000
                         orderClass.send_order(self, asset, price, quantity)
+                        self.AUM_available -= quantity
                         self.orderID += 1
 
                 
@@ -88,18 +89,21 @@ class rsiStrat(autoTrader):
                     if self.inventory[asset]["quantity"] > -MAX_INVENTORY:
                         price, quantity = current_price, 1000 
                         orderClass.send_order(self, asset, price, -quantity)
+                        self.AUM_available += quantity
                         self.orderID += 1
                 
                 if rsi <= self.sellThreshold/2 and self.inventory[asset]["quantity"]<0:
                     # Exit sell
-                    price, quantity = current_price, -self.inventory[asset]["quantity"]
+                    price, quantity = current_price, abs(self.inventory[asset]["quantity"])
                     orderClass.send_order(self, asset, price, quantity)
+                    self.AUM_available -= quantity
                     self.orderID += 1
 
                 if rsi <= self.sellThreshold/2 and self.inventory[asset]["quantity"]>0:
                     # Exit buy
-                    price, quantity = current_price, -self.inventory[asset]["quantity"]
-                    orderClass.send_order(self, asset, price, quantity)
+                    price, quantity = current_price, abs(self.inventory[asset]["quantity"])
+                    orderClass.send_order(self, asset, price, -quantity)
+                    self.AUM_available += quantity
                     self.orderID += 1
 
 

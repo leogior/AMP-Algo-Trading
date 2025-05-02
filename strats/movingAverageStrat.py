@@ -69,19 +69,18 @@ class movingAverageStrat(autoTrader):
 
             # If the signal is bullish, go long (buy)
             if short_ma > long_ma:
-                if self.inventory[asset]["quantity"] < MAX_INVENTORY:
-                    quantity = 1000
-                    orderClass.send_order(self, asset, current_price, quantity)
-                    self.AUM_available -= 1000
+                if self.inventory[asset]["quantity"] < MAX_INVENTORY and self.AUM_available>0:
+                    price, quantity = current_price, min(1000, self.AUM_available)
+                    orderClass.send_order(self, asset, price, quantity)
+                    self.AUM_available -= quantity
                     self.orderID += 1
-
 
             # If the signal is bearish, go short (sell)
             elif short_ma < long_ma:
                 if self.inventory[asset]["quantity"] > -MAX_INVENTORY:
-                    quantity = 1000
-                    orderClass.send_order(self, asset, current_price, -quantity)
-                    self.AUM_available += 1000
+                    price, quantity = current_price, 1000
+                    orderClass.send_order(self, asset, price, -quantity)
+                    self.AUM_available += quantity
                     self.orderID += 1
 
         # Process filled orders

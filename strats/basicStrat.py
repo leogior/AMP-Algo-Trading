@@ -5,7 +5,7 @@ from backtesterClass.orderBookClass import OBData
 from backtesterClass.tradingStratClass import autoTrader
 from debug import logger
 
-
+MAX_INVENT = 10000 # Modify this
 
 class basicStrat(autoTrader):
 
@@ -18,8 +18,6 @@ class basicStrat(autoTrader):
 
     def strategy(self, orderClass):
 
-        MAX_INVENT = 100000 # Modify this
-
 
         for asset in OBData.assets:
             
@@ -29,7 +27,7 @@ class basicStrat(autoTrader):
             if asset_price<targetPrice: # Modify this signal
               # Best ask below Buy Target -> I buy
               if  self.inventory[asset]["quantity"] <= MAX_INVENT and self.AUM_available > 0:
-                  price, quantity = targetPrice, 1000 # Modify this
+                  price, quantity = targetPrice, min(1000,self.AUM_available)  # Modify this
                   orderClass.send_order(self, asset, price, quantity)
                   self.AUM_available -= quantity
                   self.orderID +=1
