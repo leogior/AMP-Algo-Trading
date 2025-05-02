@@ -1,0 +1,11 @@
+# 1) ignore every file in this directory
+*
+
+# 2) but don’t ignore sub-directories (so Git still sees the folder tree)
+!*/
+
+# 3) and don’t ignore your placeholder file (so the folder isn’t “empty” in Git’s eyes)
+!.gitkeep
+
+# 4) also don’t ignore the .gitignore itself, so the rule stays tracked
+!.gitignore
