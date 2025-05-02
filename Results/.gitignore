@@ -1,0 +1,9 @@
+# 1) ignore *everything* in this directory
+*
+
+# 2) but do not ignore sub-directories (so Git can still see the tree)
+!*/
+
+# 3) and do not ignore THIS gitignore file itself (so the folder isn’t “empty”)
+!.gitignore
+!.gitkeep
