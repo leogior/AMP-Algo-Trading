@@ -163,112 +163,116 @@ class momentumOnlineLearnStrat(autoTrader):
         return cumsum_rets[idx]*(1-alpha) + rets*alpha
             
     def strategy(self, orderClass):
-
-        mid = OBData.mid()
-        self.prices.append(mid)
-        rsi = self.compute_RSI()
-        long_ma, short_ma = self.calculate_moving_averages(mid)
-
-        if mid - self.midBuffer == 0:
-            # No mid update -> move forward
-            pass
         
-        else:
-            # y = (mid/self.midBuffer)//1
-            self.midBuffer = mid
-            if len(self.prices) >=2:
-                self.cumRets = self.compute_ema_cum_rets(self.alpha, self.cumRets, self.compute_lag_rets(-2))
+        for asset in self.asset_list:
+            
+            idx = OBData.assetIdx[asset]-1
+            current_price = OBData.currentPrice(asset)
+            self.prices[idx].append(current_price)
 
-            if rsi is not None and long_ma is not None and short_ma is not None:
-                        
-                X = {"rsi" : rsi,
-                    "long_ma": long_ma,
-                    "short_ma": short_ma,
-                    "lag_ret_5": self.compute_lag_rets(-5),
-                    "lag_ret_10": self.compute_lag_rets(-10),
-                    "lag_ret_50": self.compute_lag_rets(-50),
-                    "lag_ret_100": self.compute_lag_rets(-100),
-                    "cumulative returns" : self.cumRets}
-                
-                self.X_list.append(X)
-                
-                if len(self.X_list) == self.forecast:
-                    y = (mid/self.prices[-self.forecast])//1
-                    self.y_list.append(y)
-                    y_pred = self.model.predict_proba_one(X)
-                    self.y_pred_list.append(y_pred)
-                
-                if OBData.step > self.trainLen :
+            rsi = self.compute_RSI(asset)
+            short_ma, long_ma = self.calculate_moving_averages(asset)
+
+            if mid - self.midBuffer == 0:
+                # No mid update -> move forward
+                pass
+            
+            else:
+                # y = (mid/self.midBuffer)//1
+                self.midBuffer = mid
+                if len(self.prices) >=2:
+                    self.cumRets = self.compute_ema_cum_rets(self.alpha, self.cumRets, self.compute_lag_rets(-2))
+
+                if rsi is not None and long_ma is not None and short_ma is not None:
+                            
+                    X = {"rsi" : rsi,
+                        "long_ma": long_ma,
+                        "short_ma": short_ma,
+                        "lag_ret_5": self.compute_lag_rets(-5),
+                        "lag_ret_10": self.compute_lag_rets(-10),
+                        "lag_ret_50": self.compute_lag_rets(-50),
+                        "lag_ret_100": self.compute_lag_rets(-100),
+                        "cumulative returns" : self.cumRets}
                     
-
-                    buyOrderOut = [id for id, trade in self.order_out.items() 
-                                if trade[orders.orderIndex["quantity"]] > 0]
-
-                    sellOrderOut = [id for id, trade in self.order_out.items() 
-                                if trade[orders.orderIndex["quantity"]] < 0]
-                
-                    if self.inventory["quantity"]+len(buyOrderOut) < MAX_INVENT:  # Ensure no long position above 5           
-                        if y_pred[True] > 0.95:
-                            y_hat = 1
-                            price, quantity = orderClass.bids, 1  # Buy one unit - limit order
-                            orderClass.send_order(self, price, quantity)
-                            self.orderID += 1           
-
-                    else:
-                        buyOrderToCancel = buyOrderOut[:int(MAX_INVENT-(self.inventory["quantity"]+len(buyOrderOut)))]
-
-                        if len(buyOrderToCancel) > 0:
-                            for id in buyOrderToCancel:
-                                orderClass.cancel_order(self, id)
+                    self.X_list.append(X)
                     
-                    if self.inventory["quantity"]-len(sellOrderOut) > -MAX_INVENT:  # Ensure no short position below 5
-                        if  y_pred[False] > 0.95:
-                            y_hat = 0
-                            price, quantity = orderClass.asks, -1  # Sell one unit - limit order
-                            orderClass.send_order(self, price, quantity)
-                            self.orderID += 1
-
-                    else:
-                        
-                        sellOrderToCancel = sellOrderOut[:int(MAX_INVENT-(-self.inventory["quantity"]+len(sellOrderOut)))]
-
-                        if len(sellOrderToCancel) > 0:
-                            for id in sellOrderToCancel:
-                                orderClass.cancel_order(self, id)
+                    if len(self.X_list) == self.forecast:
+                        y = (mid/self.prices[-self.forecast])//1
+                        self.y_list.append(y)
+                        y_pred = self.model.predict_proba_one(X)
+                        self.y_pred_list.append(y_pred)
                     
-                    # if (self.inventory["quantity"] < 0) and (long_ma < short_ma):
-                    #     price, quantity = 10000000, -self.inventory["quantity"] # Stop barrier
-                    #     orderClass.send_order(self, price, quantity)
-                    #     self.orderID += 1
+                    if OBData.step > self.trainLen :
                         
-                    #     buyOrderToCancel = buyOrderOut
 
-                    #     if len(buyOrderToCancel) > 0:
-                    #         for id in buyOrderToCancel:
-                    #             orderClass.cancel_order(self, id)                       
+                        buyOrderOut = [id for id, trade in self.order_out.items() 
+                                    if trade[orders.orderIndex["quantity"]] > 0]
 
-                    # if (self.inventory["quantity"] > 0) and (long_ma  short_ma):
-                    #     price, quantity = 0, -self.inventory["quantity"] # Stop barrier
-                    #     orderClass.send_order(self, price, quantity)
-                    #     self.orderID += 1
+                        sellOrderOut = [id for id, trade in self.order_out.items() 
+                                    if trade[orders.orderIndex["quantity"]] < 0]
+                    
+                        if self.inventory["quantity"]+len(buyOrderOut) < MAX_INVENT:  # Ensure no long position above 5           
+                            if y_pred[True] > 0.95:
+                                y_hat = 1
+                                price, quantity = orderClass.bids, 1  # Buy one unit - limit order
+                                orderClass.send_order(self, price, quantity)
+                                self.orderID += 1           
+
+                        else:
+                            buyOrderToCancel = buyOrderOut[:int(MAX_INVENT-(self.inventory["quantity"]+len(buyOrderOut)))]
+
+                            if len(buyOrderToCancel) > 0:
+                                for id in buyOrderToCancel:
+                                    orderClass.cancel_order(self, id)
                         
-                    #     sellOrderToCancel = sellOrderOut
+                        if self.inventory["quantity"]-len(sellOrderOut) > -MAX_INVENT:  # Ensure no short position below 5
+                            if  y_pred[False] > 0.95:
+                                y_hat = 0
+                                price, quantity = orderClass.asks, -1  # Sell one unit - limit order
+                                orderClass.send_order(self, price, quantity)
+                                self.orderID += 1
 
-                    #     if len(sellOrderToCancel) > 0:
-                    #         for id in sellOrderToCancel:
-                    #             orderClass.cancel_order(self, id)   
+                        else:
+                            
+                            sellOrderToCancel = sellOrderOut[:int(MAX_INVENT-(-self.inventory["quantity"]+len(sellOrderOut)))]
 
-                if len(self.X_list) == self.forecast:
-                
-                    self.model.learn_one(self.X_list[0], self.y_list[-1])
-                    self.metric.update(self.y_list[-1], self.y_pred_list[0])
-                    self.prediction.append([self.y_pred_list[0],self.y_list[-1]])
+                            if len(sellOrderToCancel) > 0:
+                                for id in sellOrderToCancel:
+                                    orderClass.cancel_order(self, id)
+                        
+                        # if (self.inventory["quantity"] < 0) and (long_ma < short_ma):
+                        #     price, quantity = 10000000, -self.inventory["quantity"] # Stop barrier
+                        #     orderClass.send_order(self, price, quantity)
+                        #     self.orderID += 1
+                            
+                        #     buyOrderToCancel = buyOrderOut
+
+                        #     if len(buyOrderToCancel) > 0:
+                        #         for id in buyOrderToCancel:
+                        #             orderClass.cancel_order(self, id)                       
+
+                        # if (self.inventory["quantity"] > 0) and (long_ma  short_ma):
+                        #     price, quantity = 0, -self.inventory["quantity"] # Stop barrier
+                        #     orderClass.send_order(self, price, quantity)
+                        #     self.orderID += 1
+                            
+                        #     sellOrderToCancel = sellOrderOut
+
+                        #     if len(sellOrderToCancel) > 0:
+                        #         for id in sellOrderToCancel:
+                        #             orderClass.cancel_order(self, id)   
+
+                    if len(self.X_list) == self.forecast:
+                    
+                        self.model.learn_one(self.X_list[0], self.y_list[-1])
+                        self.metric.update(self.y_list[-1], self.y_pred_list[0])
+                        self.prediction.append([self.y_pred_list[0],self.y_list[-1]])
 
 
-                # if OBData.step % 200000 == 0:   
-                # #     # logger.info(f"x:{self.X_list[0]}, y:{self.y_list[-1]}, y_pred:{self.y_pred_list[0]}")
-                #     print(f"short_window: {self.short_window}, long_window: {self.long_window}, RSI_window: {self.RSIWindow}, sellThreshold: {self.sellThreshold}, buyThreshold:{self.buyThreshold}, forecast:{self.forecast}")
-                #     print(self.model.debug_one(X))
-                #     print(self.metric)
+                    # if OBData.step % 200000 == 0:   
+                    # #     # logger.info(f"x:{self.X_list[0]}, y:{self.y_list[-1]}, y_pred:{self.y_pred_list[0]}")
+                    #     print(f"short_window: {self.short_window}, long_window: {self.long_window}, RSI_window: {self.RSIWindow}, sellThreshold: {self.sellThreshold}, buyThreshold:{self.buyThreshold}, forecast:{self.forecast}")
+                    #     print(self.model.debug_one(X))
+                    #     print(self.metric)
     
         orderClass.filled_order(self)
