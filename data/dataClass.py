@@ -1,12 +1,14 @@
 import os
 import pandas as pd
+from datetime import datetime, timedelta
 
 class DataClass:
-    def __init__(self, directory, tickers_csv):
+    def __init__(self, directory, tickers_csv, years=None):
         self.directory = directory
         self.tickers_csv = tickers_csv
         self.ticker_list = self._load_ticker_list()
         self.data = None
+        self.years = years
 
     def _load_ticker_list(self):
         df = pd.read_csv(self.tickers_csv)
@@ -15,6 +17,9 @@ class DataClass:
 
     def load_adjusted_close(self):
         dfs = []
+        min_date = None
+        if self.years is not None:
+            min_date = datetime.now() - timedelta(days=365 * self.years)
         for file_name in os.listdir(self.directory):
             if file_name.endswith('.csv'):
                 ticker = os.path.splitext(file_name)[0].upper()
@@ -29,6 +34,8 @@ class DataClass:
                         adj_close_col = adj_close_cols[0]
                         df['Date'] = pd.to_datetime(df['Date'], format='%d-%m-%Y', errors='coerce')
                         df = df.dropna(subset=['Date'])
+                        if min_date is not None:
+                            df = df[df['Date'] >= min_date]
                         df = df[['Date', adj_close_col]].rename(columns={adj_close_col: ticker})
                         dfs.append(df)
                     except Exception as e:

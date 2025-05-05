@@ -1,3 +1,4 @@
 data/stock_market_data
 __pycache__/
 backtesterClass/stockDB.db
+data/all_ohlcv_data.pkl
