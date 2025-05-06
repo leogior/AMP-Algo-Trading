@@ -83,6 +83,7 @@ class orders:
         trading_strat.historical_unrealPnL_per_asset.append(trading_strat.unrealPnL_per_asset.copy()) # Add markout per asset
 
         for asset in trading_strat.assets:
+        #   trading_strat.historical_inventory[OBData.step].append(trading_strat.inventory[asset]["quantity ($)"]) # Add quantity
           trading_strat.historical_inventory[OBData.step].append(trading_strat.inventory[asset]["quantity"]) # Add quantity
 
         # Reset :

@@ -22,6 +22,7 @@ from SQLite_Manager.sqlManager import SqlAlchemyDataBaseManager
 
 class analysisClass:
     def __init__(self, autoTrader, path : str = None, dashboardName : str = None, dbName : str = None):
+
         self.autoTrader = autoTrader
         self.path = path
         self.dashboardName = dashboardName
@@ -224,8 +225,8 @@ class analysisClass:
         if show:
 
             fig.update_layout(
-                width=700,  
-                height=400, 
+                width=1000,  
+                height=800, 
             )
             fig.show()
 

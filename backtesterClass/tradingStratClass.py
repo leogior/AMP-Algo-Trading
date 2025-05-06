@@ -5,10 +5,14 @@ from .orderClass import orders
 from .orderBookClass import OBData
 from debug import logger
 
+
+MAX_INVENTORY = 100000 # Modify this
+
+
 class autoTrader(ABC):
     def __init__(self, strat_name):
         self.strat = strat_name
-        self.__class__.AUM_available = 100000000
+        self.AUM_available = 100000000
 
         self.__class__.assets = [col for col in OBData.assets]
 
@@ -17,6 +21,7 @@ class autoTrader(ABC):
 
         self.historical_pnl = []
         self.historical_unrealPnL = []
+        self.historical_AUM = []
 
         self.historical_pnl_per_asset = []
         self.historical_unrealPnL_per_asset = []
@@ -26,10 +31,10 @@ class autoTrader(ABC):
         self.PnL_per_asset = np.zeros(len(OBData.assets))
         self.unrealPnL_per_asset = np.zeros(len(OBData.assets))
 
-
-        self.inventory = {asset : {"price" : 0 , "quantity" : 0} for asset in self.assets}
-        self.__class__.order_out = {}
-        self.__class__.orderID = 0
+        self.inventory = {asset : {"price" : 0 , "quantity" : 0, "quantity ($)": 0} for asset in self.assets}
+    
+        self.order_out = {}
+        self.orderID = 0
 
     def computePnL(self, orderID):
 
@@ -96,10 +101,6 @@ class autoTrader(ABC):
 
             self.unrealPnL += unrealPnL
             self.unrealPnL_per_asset[OBData.assetIdx[asset]-1] = unrealPnL
-
-            # if asset == "AAPL":
-            #     print(f"quantity: {quantity}, avgPrice: {avgPrice}, currentPrice: {currentPrice}, unrealPnL: {unrealPnL}")
-
         return
 
     def updateInventory(self, orderPrice: int, orderQuantity: int, asset: str):
@@ -114,9 +115,9 @@ class autoTrader(ABC):
             self.inventory[asset]["price"] = (self.inventory[asset]["price"]*self.inventory[asset]["quantity"]
                                                 + orderPrice*orderQuantity) / (orderQuantity+self.inventory[asset]["quantity"])
 
-        # if asset == "AAPL":
-        #     print(f"orderQuantity: {orderQuantity}, invent: {self.inventory[asset]['quantity']}")
+
         self.inventory[asset]["quantity"] += orderQuantity
+        # self.inventory[asset]["quantity ($)"] += orderQuantity*orderPrice
 
     @abstractmethod
     def strategy():
