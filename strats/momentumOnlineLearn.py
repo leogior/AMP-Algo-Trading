@@ -24,20 +24,22 @@ MAX_INVENTORY = 10000
 class momentumOnlineLearnStrat(autoTrader):
     
     def __init__(self, name,
-                short_window: int, long_window: int,
+                short_window: int = 20, long_window: int = 200,
                 RSI_window=50, sellThreshold=70,
-                buyThreshold=30, alpha=0.02,
-                trainLen = 20000, forecast=1):
+                buyThreshold=30, alpha=0.05,
+                trainLen = 200, forecast=1):
         
         super().__init__(name)
         self.name = name
         self.asset_list = OBData.assets
         self.asset_count = len(self.asset_list)
 
-        self.windowRSI = RSI_window 
+        self.windowLengt = RSI_window
+        self.windowRSI = [deque(maxlen=self.windowLengt) for _ in range(self.asset_count)]
+
         self.short_window = short_window
         self.long_window = long_window
-        self.maxLen = max(self.windowRSI,self.long_window)
+        self.maxLen = max(self.windowLengt,self.long_window+1)
 
 
         self.forecast = forecast
@@ -128,22 +130,22 @@ class momentumOnlineLearnStrat(autoTrader):
         price_queue = self.prices[idx]
         price_queue.append(new_price)
 
-        if len(price_queue) < self.short_window:
+        if len(price_queue) <= self.short_window:
             self.short_sums[idx] += new_price
             self.long_sums[idx] += new_price
             self.historical_short_ma[idx].append(None)
             self.historical_long_ma[idx].append(None)
             return None, None
 
-        if len(price_queue) < self.long_window:
-            self.short_sums[idx] += new_price - (price_queue[-self.short_window] if len(price_queue) >= self.short_window else 0)
+        elif len(price_queue) < self.long_window:
+            self.short_sums[idx] += new_price - price_queue[-self.short_window-1]
             self.long_sums[idx] += new_price
             self.historical_short_ma[idx].append(None)
             self.historical_long_ma[idx].append(None)
             return None, None
 
         # Fast rolling sums for short and long window
-        self.short_sums[idx] += new_price - price_queue[-self.short_window]
+        self.short_sums[idx] += new_price - price_queue[-self.short_window-1]
         self.long_sums[idx] += new_price - price_queue[0]
 
         short_ma = self.short_sums[idx] / self.short_window
@@ -158,9 +160,8 @@ class momentumOnlineLearnStrat(autoTrader):
         idx = OBData.assetIdx[asset]-1
         return self.prices[idx][-1]/self.prices[idx][-lag] - 1
 
-    def compute_ema_cum_rets(self, asset, alpha, cumsum_rets, rets):
-        idx = OBData.assetIdx[asset]-1
-        return cumsum_rets[idx]*(1-alpha) + rets*alpha
+    def compute_ema_cum_rets(self, alpha, cumsum_rets, rets):
+        return cumsum_rets*(1-alpha) + rets*alpha
             
     def strategy(self, orderClass):
         
@@ -168,77 +169,56 @@ class momentumOnlineLearnStrat(autoTrader):
             
             idx = OBData.assetIdx[asset]-1
             current_price = OBData.currentPrice(asset)
-            self.prices[idx].append(current_price)
 
             rsi = self.compute_RSI(asset)
             short_ma, long_ma = self.calculate_moving_averages(asset)
 
-            if mid - self.midBuffer == 0:
+            if current_price - self.midBuffer[idx] == 0:
                 # No mid update -> move forward
                 pass
             
             else:
                 # y = (mid/self.midBuffer)//1
-                self.midBuffer = mid
-                if len(self.prices) >=2:
-                    self.cumRets = self.compute_ema_cum_rets(self.alpha, self.cumRets, self.compute_lag_rets(-2))
+                self.midBuffer[idx] = current_price
+                if len(self.prices[idx]) > 2:
+                    self.cumRets[idx] = self.compute_ema_cum_rets(self.alpha, self.cumRets[idx], self.compute_lag_rets(asset,-2))
 
                 if rsi is not None and long_ma is not None and short_ma is not None:
                             
                     X = {"rsi" : rsi,
                         "long_ma": long_ma,
                         "short_ma": short_ma,
-                        "lag_ret_5": self.compute_lag_rets(-5),
-                        "lag_ret_10": self.compute_lag_rets(-10),
-                        "lag_ret_50": self.compute_lag_rets(-50),
-                        "lag_ret_100": self.compute_lag_rets(-100),
-                        "cumulative returns" : self.cumRets}
+                        "lag_ret_1": self.compute_lag_rets(asset,-1),
+                        "lag_ret_2": self.compute_lag_rets(asset,-2),
+                        "lag_ret_5": self.compute_lag_rets(asset,-5),
+                        "lag_ret_10": self.compute_lag_rets(asset,-10),
+                        "cumulative returns" : self.cumRets[idx]}
                     
-                    self.X_list.append(X)
+                    self.X_list[idx].append(X)
                     
-                    if len(self.X_list) == self.forecast:
-                        y = (mid/self.prices[-self.forecast])//1
-                        self.y_list.append(y)
+                    if len(self.X_list[idx]) == self.forecast:
+                        y = (current_price/self.prices[idx][-self.forecast-1])//1 
+                        self.y_list[idx].append(y)
                         y_pred = self.model.predict_proba_one(X)
-                        self.y_pred_list.append(y_pred)
+                        self.y_pred_list[idx].append(y_pred)
                     
                     if OBData.step > self.trainLen :
+
+                        if y_pred[True] > 0.95:
+                            # Buy Signal
+                            if self.inventory[asset]["quantity"] < MAX_INVENTORY and self.AUM_available>0:
+                                price, quantity = current_price, 1000 
+                                orderClass.send_order(self, asset, price, quantity)
+                                self.AUM_available -= quantity
+                                self.orderID += 1                          
                         
-
-                        buyOrderOut = [id for id, trade in self.order_out.items() 
-                                    if trade[orders.orderIndex["quantity"]] > 0]
-
-                        sellOrderOut = [id for id, trade in self.order_out.items() 
-                                    if trade[orders.orderIndex["quantity"]] < 0]
-                    
-                        if self.inventory["quantity"]+len(buyOrderOut) < MAX_INVENT:  # Ensure no long position above 5           
-                            if y_pred[True] > 0.95:
-                                y_hat = 1
-                                price, quantity = orderClass.bids, 1  # Buy one unit - limit order
-                                orderClass.send_order(self, price, quantity)
-                                self.orderID += 1           
-
-                        else:
-                            buyOrderToCancel = buyOrderOut[:int(MAX_INVENT-(self.inventory["quantity"]+len(buyOrderOut)))]
-
-                            if len(buyOrderToCancel) > 0:
-                                for id in buyOrderToCancel:
-                                    orderClass.cancel_order(self, id)
-                        
-                        if self.inventory["quantity"]-len(sellOrderOut) > -MAX_INVENT:  # Ensure no short position below 5
-                            if  y_pred[False] > 0.95:
-                                y_hat = 0
-                                price, quantity = orderClass.asks, -1  # Sell one unit - limit order
-                                orderClass.send_order(self, price, quantity)
+                        if  y_pred[False] > 0.95:
+                            # Sell Signal
+                            if self.inventory[asset]["quantity"] > -MAX_INVENTORY:
+                                price, quantity = current_price, 1000
+                                orderClass.send_order(self, asset, price, -quantity)
+                                self.AUM_available += quantity
                                 self.orderID += 1
-
-                        else:
-                            
-                            sellOrderToCancel = sellOrderOut[:int(MAX_INVENT-(-self.inventory["quantity"]+len(sellOrderOut)))]
-
-                            if len(sellOrderToCancel) > 0:
-                                for id in sellOrderToCancel:
-                                    orderClass.cancel_order(self, id)
                         
                         # if (self.inventory["quantity"] < 0) and (long_ma < short_ma):
                         #     price, quantity = 10000000, -self.inventory["quantity"] # Stop barrier
@@ -262,17 +242,10 @@ class momentumOnlineLearnStrat(autoTrader):
                         #         for id in sellOrderToCancel:
                         #             orderClass.cancel_order(self, id)   
 
-                    if len(self.X_list) == self.forecast:
-                    
-                        self.model.learn_one(self.X_list[0], self.y_list[-1])
-                        self.metric.update(self.y_list[-1], self.y_pred_list[0])
-                        self.prediction.append([self.y_pred_list[0],self.y_list[-1]])
+                    if len(self.X_list[idx]) == self.forecast:
+                        self.model.learn_one(self.X_list[idx][0], self.y_list[idx][-1])
+                        self.metric.update(self.y_list[idx][-1], self.y_pred_list[idx][0])
+                        self.prediction[idx].append([self.y_pred_list[idx][0],self.y_list[idx][-1]])
 
-
-                    # if OBData.step % 200000 == 0:   
-                    # #     # logger.info(f"x:{self.X_list[0]}, y:{self.y_list[-1]}, y_pred:{self.y_pred_list[0]}")
-                    #     print(f"short_window: {self.short_window}, long_window: {self.long_window}, RSI_window: {self.RSIWindow}, sellThreshold: {self.sellThreshold}, buyThreshold:{self.buyThreshold}, forecast:{self.forecast}")
-                    #     print(self.model.debug_one(X))
-                    #     print(self.metric)
-    
+        self.historical_AUM.append(self.AUM_available)
         orderClass.filled_order(self)

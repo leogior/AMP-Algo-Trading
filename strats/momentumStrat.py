@@ -12,7 +12,7 @@ MAX_INVENTORY = 10000
 class momentumStrat(autoTrader):
     
     def __init__(self, name,
-                short_window: int, long_window: int,
+                short_window: int = 20, long_window: int = 200,
                 RSI_window=50, sellThreshold=70,
                 buyThreshold=30, alpha=0.05):
         
@@ -22,7 +22,7 @@ class momentumStrat(autoTrader):
 
         self.asset_list = OBData.assets
         self.asset_count = len(self.asset_list)
-        self.prices = [deque(maxlen=self.long_window) for _ in range(self.asset_count)] # Store only up to `long_window` prices
+        self.prices = [deque(maxlen=self.long_window+1) for _ in range(self.asset_count)] # Store only up to `long_window` prices
         self.historical_short_ma = [[] for _ in range(self.asset_count)]
         self.historical_long_ma = [[] for _ in range(self.asset_count)]
         self.short_sums = np.zeros(self.asset_count)
@@ -36,7 +36,6 @@ class momentumStrat(autoTrader):
         self.alpha = alpha  # Smoothing factor
         self.historical_RSI = [[] for _ in range(self.asset_count)]
 
-    
 
 
     def compute_RSI(self, asset):
@@ -87,22 +86,22 @@ class momentumStrat(autoTrader):
         price_queue = self.prices[idx]
         price_queue.append(new_price)
 
-        if len(price_queue) < self.short_window:
+        if len(price_queue) <= self.short_window:
             self.short_sums[idx] += new_price
             self.long_sums[idx] += new_price
             self.historical_short_ma[idx].append(None)
             self.historical_long_ma[idx].append(None)
             return None, None
 
-        if len(price_queue) < self.long_window:
-            self.short_sums[idx] += new_price - (price_queue[-self.short_window] if len(price_queue) >= self.short_window else 0)
+        elif len(price_queue) < self.long_window:
+            self.short_sums[idx] += new_price - price_queue[-self.short_window-1]
             self.long_sums[idx] += new_price
             self.historical_short_ma[idx].append(None)
             self.historical_long_ma[idx].append(None)
             return None, None
 
         # Fast rolling sums for short and long window
-        self.short_sums[idx] += new_price - price_queue[-self.short_window]
+        self.short_sums[idx] += new_price - price_queue[-self.short_window-1]
         self.long_sums[idx] += new_price - price_queue[0]
 
         short_ma = self.short_sums[idx] / self.short_window
@@ -160,9 +159,8 @@ class momentumStrat(autoTrader):
                     self.AUM_available -= quantity
                     self.orderID += 1
 
-
-
-
         # Update filled orders
+        self.historical_AUM.append(self.AUM_available)
         orderClass.filled_order(self)
+
 

@@ -108,4 +108,5 @@ class rsiStrat(autoTrader):
 
 
         # Update filled orders
+        self.historical_AUM.append(self.AUM_available)
         orderClass.filled_order(self)
