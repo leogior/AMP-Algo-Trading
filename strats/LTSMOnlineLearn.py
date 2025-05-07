@@ -20,7 +20,7 @@ from deep_river.regression import RollingRegressor
 
 from torch import nn
 from .LTSMClass import LstmModule
-from debug import logger
+from utils.debug import logger
 
 
 MAX_INVENTORY = 10000

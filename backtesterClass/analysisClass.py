@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from datetime import datetime 
-from debug import logger
+from utils.debug import logger
 
 from .orderBookClass import OBData
 

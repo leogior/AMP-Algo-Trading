@@ -3,7 +3,7 @@ import numpy as np
 from backtesterClass.orderClass import orders
 from backtesterClass.orderBookClass import OBData
 from backtesterClass.tradingStratClass import autoTrader, MAX_INVENTORY
-from debug import logger
+from utils.debug import logger
 
 MAX_INVENTORY = 10000 # Modify this
 

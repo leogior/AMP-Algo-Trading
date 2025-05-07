@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from .orderBookClass import OBData
-from debug import logger
+from utils.debug import logger
 import copy
 
 

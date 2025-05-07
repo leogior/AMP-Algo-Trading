@@ -3,7 +3,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from .orderClass import orders
 from .orderBookClass import OBData
-from debug import logger
+from utils.debug import logger
 
 
 MAX_INVENTORY = 100000 # Modify this

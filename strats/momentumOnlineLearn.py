@@ -16,7 +16,7 @@ from river import feature_selection
 
 
 
-from debug import logger
+from utils.debug import logger
 
 
 MAX_INVENTORY = 10000
