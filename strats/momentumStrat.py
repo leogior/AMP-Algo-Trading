@@ -145,18 +145,18 @@ class momentumStrat(autoTrader):
                         self.AUM_available += quantity
                         self.orderID += 1
                 
-                elif rsi >= self.sellThreshold and self.inventory[asset]["quantity"]>0:
-                    # Exit buy
-                    price, quantity = current_price, 1000
-                    orderClass.send_order(self, asset, price, -quantity)
-                    self.AUM_available += quantity
-                    self.orderID += 1
-
-                elif rsi <= self.buyThreshold and self.inventory[asset]["quantity"]<0 and self.AUM_available>0:
+                elif rsi <= 50 + (self.sellThreshold-50)/2  and self.inventory[asset]["quantity"]<0:
                     # Exit sell
-                    price, quantity = current_price, 1000
+                    price, quantity = current_price, abs(self.inventory[asset]["quantity"])
                     orderClass.send_order(self, asset, price, quantity)
                     self.AUM_available -= quantity
+                    self.orderID += 1
+
+                elif rsi <=  50 - (50-self.buyThreshold)/2 and self.inventory[asset]["quantity"]>0:
+                    # Exit buy
+                    price, quantity = current_price, abs(self.inventory[asset]["quantity"])
+                    orderClass.send_order(self, asset, price, -quantity)
+                    self.AUM_available += quantity
                     self.orderID += 1
 
         # Update filled orders
