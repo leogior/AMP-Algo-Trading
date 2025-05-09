@@ -4,7 +4,7 @@ from collections import deque
 from backtesterClass.orderClass import orders
 from backtesterClass.orderBookClass import OBData
 from backtesterClass.tradingStratClass import autoTrader
-from debug import logger
+from utils.debug import logger
 import sys
 
 
