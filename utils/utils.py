@@ -60,7 +60,7 @@ def global_perf(strategies : dict, strat_name : str):
             row=2, col=1
         )
 
-        # AUM for strategy 50-200 (first plot)
+        # AUM
         fig.add_trace(
             go.Scatter(
                 x=OBData.OBData_[:, 0],
@@ -73,6 +73,21 @@ def global_perf(strategies : dict, strat_name : str):
             ),
             row=3, col=1
         )
+
+        # # Potfolio Value
+        # fig.add_trace(
+        #     go.Scatter(
+        #         x=OBData.OBData_[:, 0],
+        #         y= np.array(strat.historical_AUM) + np.array(strat.historical_unrealPnL),
+        #         mode='lines',
+        #         name=name,
+        #         line=dict(color=color),
+        #         legendgroup=name,
+        #         showlegend=False
+        #     ),
+        #     row=4, col=1
+        # )
+
     # Layout
     fig.update_layout(
         height=1000,
@@ -90,7 +105,7 @@ def global_perf(strategies : dict, strat_name : str):
     fig.show()
 
 def compute_returns(pnl_series):
-    return np.diff(pnl_series)
+    return np.diff(pnl_series)/pnl_series[:-1]
 
 def compute_volatility(returns):
     return np.std(returns)
@@ -98,7 +113,7 @@ def compute_volatility(returns):
 def compute_sharpe(returns):
     mean_return = np.mean(returns)
     std_return = np.std(returns)
-    return mean_return / std_return if std_return != 0 else np.nan
+    return np.sqrt(252) * mean_return / std_return if std_return != 0 else np.nan
 
 def compute_max_drawdown(pnl_series):
     pnl_array = np.array(pnl_series)
@@ -112,21 +127,22 @@ def peformance_metrics(strategies):
     data = []
 
     for name, strat in strategies.items():
-        pnl = strat.historical_unrealPnL
-        if len(pnl) < 2:
+        portfolio_value = np.array(strat.historical_unrealPnL) + np.array(strat.historical_AUM)
+
+        if len(portfolio_value) < 2:
             continue  # skip incomplete data
 
-        returns = compute_returns(pnl)
+        returns = compute_returns(portfolio_value)
         
         sharpe = compute_sharpe(returns)
-        max_drawdown = compute_max_drawdown(pnl)
-        total_pnl = pnl[-1]  # Final unrealized PnL value
+        max_drawdown = compute_max_drawdown(portfolio_value)
+        total_pnl = strat.historical_unrealPnL[-1]  # Final unrealized PnL value
 
         data.append({
             "Strategy": name,
-            "Sharpe Ratio": sharpe,
-            "Max Drawdown ($m)": max_drawdown/1e8,
-            "Total PnL ($m)": total_pnl/1e8,
+            "Sharpe Ratio (annualized)": sharpe,
+            "Max Drawdown ($m)": max_drawdown/1e6,
+            "Total PnL ($m)": total_pnl/1e6,
         })
 
     # Convert to DataFrame
