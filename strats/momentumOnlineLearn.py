@@ -220,27 +220,22 @@ class momentumOnlineLearnStrat(autoTrader):
                                 self.AUM_available += quantity
                                 self.orderID += 1
                         
-                        # if (self.inventory["quantity"] < 0) and (long_ma < short_ma):
-                        #     price, quantity = 10000000, -self.inventory["quantity"] # Stop barrier
-                        #     orderClass.send_order(self, price, quantity)
-                        #     self.orderID += 1
-                            
-                        #     buyOrderToCancel = buyOrderOut
+                        # Stop loss logic: close short if bullish crossover, close long if bearish crossover
+                        if self.inventory[asset]["quantity"] < 0 and short_ma > long_ma:
+                            # Close short position
+                            price = current_price
+                            quantity = abs(self.inventory[asset]["quantity"])
+                            orderClass.send_order(self, asset, price, quantity)
+                            self.AUM_available -= quantity
+                            self.orderID += 1
 
-                        #     if len(buyOrderToCancel) > 0:
-                        #         for id in buyOrderToCancel:
-                        #             orderClass.cancel_order(self, id)                       
-
-                        # if (self.inventory["quantity"] > 0) and (long_ma  short_ma):
-                        #     price, quantity = 0, -self.inventory["quantity"] # Stop barrier
-                        #     orderClass.send_order(self, price, quantity)
-                        #     self.orderID += 1
-                            
-                        #     sellOrderToCancel = sellOrderOut
-
-                        #     if len(sellOrderToCancel) > 0:
-                        #         for id in sellOrderToCancel:
-                        #             orderClass.cancel_order(self, id)   
+                        if self.inventory[asset]["quantity"] > 0 and short_ma < long_ma:
+                            # Close long position
+                            price = current_price
+                            quantity = abs(self.inventory[asset]["quantity"])
+                            orderClass.send_order(self, asset, price, -quantity)
+                            self.AUM_available += quantity
+                            self.orderID += 1
 
                     if len(self.X_list[idx]) == self.forecast:
                         self.model.learn_one(self.X_list[idx][0], self.y_list[idx][-1])

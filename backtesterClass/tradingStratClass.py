@@ -12,7 +12,7 @@ MAX_INVENTORY = 100000 # Modify this
 class autoTrader(ABC):
     def __init__(self, strat_name):
         self.strat = strat_name
-        self.AUM_available = 100000000
+        self.AUM_available = 10000000
 
         self.__class__.assets = [col for col in OBData.assets]
 
