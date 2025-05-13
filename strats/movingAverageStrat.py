@@ -61,11 +61,33 @@ class movingAverageStrat(autoTrader):
     def strategy(self, orderClass):
 
         for asset in self.asset_list:
+            current_price = OBData.currentPrice(asset)
+            entry_price = self.inventory[asset]["price"]
+            position = self.inventory[asset]["quantity"]
+
+            # Stop loss logic
+            if position > 0 and entry_price > 0:
+                loss_pct = (current_price - entry_price) / entry_price
+                if loss_pct < -0.5:
+                    # Stop loss for long
+                    price, quantity = current_price, abs(position)
+                    orderClass.send_order(self, asset, price, -quantity)
+                    self.AUM_available += quantity
+                    self.orderID += 1
+                    continue  # Skip further trading for this asset this step
+            elif position < 0 and entry_price > 0:
+                loss_pct = (entry_price - current_price) / entry_price
+                if loss_pct < -0.5:
+                    # Stop loss for short
+                    price, quantity = current_price, abs(position)
+                    orderClass.send_order(self, asset, price, quantity)
+                    self.AUM_available -= quantity
+                    self.orderID += 1
+                    continue
+
             short_ma, long_ma = self.calculate_moving_averages(asset)
             if short_ma is None or long_ma is None:
                 continue
-
-            current_price = OBData.currentPrice(asset)
 
             # If the signal is bullish, go long (buy)
             if short_ma > long_ma:
