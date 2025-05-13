@@ -4,3 +4,4 @@ Results/**
 !Results/
 backtesterClass/stockDB.db
 .specstory/
+.DS_Store
