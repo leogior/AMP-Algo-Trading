@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from .orderClass import orders
 from .orderBookClass import OBData
 from utils.debug import logger
+import sys 
 
 
 MAX_INVENTORY = 100000 # Modify this
@@ -31,7 +32,7 @@ class autoTrader(ABC):
         self.PnL_per_asset = np.zeros(len(OBData.assets))
         self.unrealPnL_per_asset = np.zeros(len(OBData.assets))
 
-        self.inventory = {asset : {"price" : 0 , "quantity" : 0, "quantity ($)": 0} for asset in self.assets}
+        self.inventory = {asset : {"price" : 0 , "quantity" : 0} for asset in OBData.assets}
     
         self.order_out = {}
         self.orderID = 0
@@ -104,11 +105,11 @@ class autoTrader(ABC):
         return
 
     def updateInventory(self, orderPrice: int, orderQuantity: int, asset: str):
-
+    
         if self.inventory[asset]["quantity"] == 0:
             self.inventory[asset]["price"] = orderPrice
         elif np.sign(self.inventory[asset]["quantity"] + orderQuantity) != np.sign(self.inventory[asset]["quantity"]):
-            self.inventory["price"] = orderPrice
+            self.inventory[asset]["price"] = orderPrice
         elif np.sign(self.inventory[asset]["quantity"]) != np.sign(orderQuantity):
             pass
         elif np.sign(self.inventory[asset]["quantity"]) == np.sign(orderQuantity):
@@ -117,7 +118,6 @@ class autoTrader(ABC):
 
 
         self.inventory[asset]["quantity"] += orderQuantity
-        # self.inventory[asset]["quantity ($)"] += orderQuantity*orderPrice
 
     @abstractmethod
     def strategy():

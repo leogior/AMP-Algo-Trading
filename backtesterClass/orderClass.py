@@ -3,6 +3,7 @@ import numpy as np
 from .orderBookClass import OBData
 from utils.debug import logger
 import copy
+import sys
 
 
 class orders:
@@ -63,6 +64,7 @@ class orders:
 
 
             if orderStatus == 1:
+
                 trading_strat.computePnL(orderID)
                 trading_strat.updateInventory(orderPrice, orderQuantity, orderAsset)
                 orderFilledToCancel.append(orderID)
@@ -82,13 +84,14 @@ class orders:
         trading_strat.historical_pnl_per_asset.append(trading_strat.PnL_per_asset.copy()) # Add realized PnL per asset
         trading_strat.historical_unrealPnL_per_asset.append(trading_strat.unrealPnL_per_asset.copy()) # Add markout per asset
 
-        for asset in trading_strat.assets:
+        for asset in OBData.assets:
         #   trading_strat.historical_inventory[OBData.step].append(trading_strat.inventory[asset]["quantity ($)"]) # Add quantity
           trading_strat.historical_inventory[OBData.step].append(trading_strat.inventory[asset]["quantity"]) # Add quantity
 
         # Reset :
         trading_strat.PnL = 0
         trading_strat.unrealPnL = 0
+
 
 
 

@@ -16,6 +16,7 @@ from strats.movingAverageStrat import movingAverageStrat
 from strats.rsiStrat import rsiStrat
 from strats.momentumStrat import momentumStrat
 from strats.momentumOnlineLearn import momentumOnlineLearnStrat
+from strats.valueStrat import valueStrat
 
 from SQLite_Manager.sqlManager import SqlAlchemyDataBaseManager
 
@@ -27,6 +28,7 @@ class analysisClass:
         self.path = path
         self.dashboardName = dashboardName
         self.dbName = dbName
+
 
         self.data = pd.DataFrame(OBData.OBData_, columns = OBData.OBIndex.keys())
 
