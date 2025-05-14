@@ -22,7 +22,7 @@ def run_backtest():
 
     ############ Load Data ############
 
-    db_path = r"backtesterClass/stockDB.db"
+    db_path = r"data/all_ohlcv_data.csv"
     dataClass = OBData(db_path)
 
 
