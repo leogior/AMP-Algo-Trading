@@ -1,7 +1,0 @@
-data/stock_market_data
-__pycache__/
-Results/**
-!Results/
-backtesterClass/stockDB.db
-.specstory/
-.DS_Store

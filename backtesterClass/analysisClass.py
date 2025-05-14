@@ -11,14 +11,12 @@ from utils.debug import logger
 
 from .orderBookClass import OBData
 
-from strats.basicStrat import basicStrat
 from strats.movingAverageStrat import movingAverageStrat
 from strats.rsiStrat import rsiStrat
 from strats.momentumStrat import momentumStrat
 from strats.momentumOnlineLearn import momentumOnlineLearnStrat
 from strats.valueStrat import valueStrat
 
-from SQLite_Manager.sqlManager import SqlAlchemyDataBaseManager
 
 
 class analysisClass:
