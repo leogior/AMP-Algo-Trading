@@ -14,28 +14,25 @@ def global_perf(strategies : dict, strat_name : str):
     strategy_names = list(strategies.keys())
     color_map = {name: color_palette[i % len(color_palette)] for i, name in enumerate(strategy_names)}
 
-    # Create 3 subplots (AUM, Realized, Unrealized)
+    # Create 2 subplots: Portfolio Value (top), Cash (bottom)
     fig = make_subplots(
-        rows=4, cols=1,
+        rows=2, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.07,
         subplot_titles=(
-            "Realized PnL",
-            "Unrealized PnL",
-            "Cash",
-            "Portfolio Value"
+            "Portfolio Value",
+            "Cash"
         )
     )
 
-    # Add Realized & Unrealized PnL traces
     for name, strat in strategies.items():
         color = color_map[name]
-
-        # Realized PnL — legend shown
+        # Portfolio Value = AUM + Unrealized PnL
+        portfolio_value = np.array(strat.historical_AUM) + np.array(strat.historical_unrealPnL)
         fig.add_trace(
             go.Scatter(
                 x=OBData.OBData_[:, 0],
-                y=strat.historical_pnl,
+                y=portfolio_value,
                 mode='lines',
                 name=name,
                 line=dict(color=color),
@@ -44,22 +41,7 @@ def global_perf(strategies : dict, strat_name : str):
             ),
             row=1, col=1
         )
-
-        # Unrealized PnL — legend hidden
-        fig.add_trace(
-            go.Scatter(
-                x=OBData.OBData_[:, 0],
-                y=strat.historical_unrealPnL,
-                mode='lines',
-                name=name,
-                line=dict(color=color),
-                legendgroup=name,
-                showlegend=False
-            ),
-            row=2, col=1
-        )
-
-        # AUM
+        # Cash
         fig.add_trace(
             go.Scatter(
                 x=OBData.OBData_[:, 0],
@@ -70,36 +52,19 @@ def global_perf(strategies : dict, strat_name : str):
                 legendgroup=name,
                 showlegend=False
             ),
-            row=3, col=1
+            row=2, col=1
         )
 
-         # Potfolio Value
-        fig.add_trace(
-             go.Scatter(
-                 x=OBData.OBData_[:, 0],
-                 y= np.array(strat.historical_AUM) + np.array(strat.historical_unrealPnL),
-                 mode='lines',
-                 name=name,
-                 line=dict(color=color),
-                 legendgroup=name,
-                 showlegend=False
-             ),
-             row=4, col=1
-         )
-
-    # Layout
     fig.update_layout(
-        height=1000,
+        height=700,
         width=1000,
-        title_text=f"{strat_name} Strategies: Cash, Realized & Unrealized PnL",
         template='plotly_white',
         legend_title="Strategy"
     )
 
-    fig.update_xaxes(title_text="Time Step", row=3, col=1)
-    fig.update_yaxes(title_text="Realized PnL", row=1, col=1)
-    fig.update_yaxes(title_text="Unrealized PnL", row=2, col=1)
-    fig.update_yaxes(title_text="Cash", row=3, col=1)
+    fig.update_xaxes(title_text="Time Step", row=2, col=1)
+    fig.update_yaxes(title_text="Portfolio Value", row=1, col=1)
+    fig.update_yaxes(title_text="Cash", row=2, col=1)
 
     fig.show()
 
@@ -161,9 +126,11 @@ def compute_average_holding_period(trades, assets):
 
 def compute_turnover(trades, portfolio_value_series):
     # trades: list of [orderId, asset, sendTime, price, quantity, endTime, status]
-    total_volume = np.sum([abs(trade[4]) for trade in trades])
+    total_bought = np.sum([trade[4] for trade in trades if trade[4] > 0])
+    total_sold = np.sum([-trade[4] for trade in trades if trade[4] < 0])
+    min_bought_sold = min(total_bought, total_sold)
     avg_portfolio_value = np.mean(portfolio_value_series)
-    return total_volume / avg_portfolio_value if avg_portfolio_value != 0 else np.nan
+    return (min_bought_sold / avg_portfolio_value) * 100 if avg_portfolio_value != 0 else np.nan
 
 def peformance_metrics(strategies, verbose=False):
     # Compute stats
@@ -221,3 +188,50 @@ def peformance_metrics(strategies, verbose=False):
         ]
         stats_df = stats_df[cols]
     return stats_df
+
+def check_strategy_variance_and_params(strat, verbose=True, warn_threshold=1e9):
+    """
+    Checks variance and key statistics for all relevant parameters of a strategy.
+    Prints or returns a summary with warnings if variance is suspiciously high.
+    """
+    import warnings
+    results = {}
+    def stat_report(arr, name):
+        arr = np.array(arr)
+        stats = {
+            'min': np.nanmin(arr),
+            'max': np.nanmax(arr),
+            'mean': np.nanmean(arr),
+            'std': np.nanstd(arr),
+            'variance': np.nanvar(arr)
+        }
+        if stats['variance'] > warn_threshold:
+            stats['warning'] = f"Variance of {name} is very high: {stats['variance']:.2e}"
+            if verbose:
+                warnings.warn(stats['warning'])
+        if verbose:
+            print(f"{name}: {stats}")
+        return stats
+
+    # Check historical PnL
+    if hasattr(strat, 'historical_pnl'):
+        results['historical_pnl'] = stat_report(strat.historical_pnl, 'historical_pnl')
+    if hasattr(strat, 'historical_unrealPnL'):
+        results['historical_unrealPnL'] = stat_report(strat.historical_unrealPnL, 'historical_unrealPnL')
+    if hasattr(strat, 'historical_AUM'):
+        results['historical_AUM'] = stat_report(strat.historical_AUM, 'historical_AUM')
+    if hasattr(strat, 'historical_unrealPnL_per_asset'):
+        arr = np.array(strat.historical_unrealPnL_per_asset)
+        if arr.ndim == 2:
+            for i, asset in enumerate(getattr(strat, 'assets', [])):
+                results[f'unrealPnL_{asset}'] = stat_report(arr[:, i], f'unrealPnL_{asset}')
+    if hasattr(strat, 'historical_AUM') and hasattr(strat, 'historical_unrealPnL'):
+        portfolio_value = np.array(strat.historical_AUM) + np.array(strat.historical_unrealPnL)
+        results['portfolio_value'] = stat_report(portfolio_value, 'portfolio_value')
+    if hasattr(strat, 'historical_inventory'):
+        arr = np.array(strat.historical_inventory)
+        if arr.ndim == 2:
+            for i, asset in enumerate(getattr(strat, 'assets', [])):
+                results[f'inventory_{asset}'] = stat_report(arr[:, i], f'inventory_{asset}')
+    # Add more checks as needed for other series
+    return results
