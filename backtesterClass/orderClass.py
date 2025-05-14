@@ -79,9 +79,9 @@ class orders:
 
 
         trading_strat.historical_pnl.append(trading_strat.PnL) # add realized PnL to the historic
+        trading_strat.historical_pnl_per_asset.append(trading_strat.PnL_per_asset.copy()) # Add realized PnL per asset
         trading_strat.computeUnrealPnL() # Compute unrealized pnl
         trading_strat.historical_unrealPnL.append(trading_strat.unrealPnL) # add unrealized PnL to the historic
-        trading_strat.historical_pnl_per_asset.append(trading_strat.PnL_per_asset.copy()) # Add realized PnL per asset
         trading_strat.historical_unrealPnL_per_asset.append(trading_strat.unrealPnL_per_asset.copy()) # Add markout per asset
 
         for asset in OBData.assets:
